@@ -24,18 +24,12 @@ sheet_applications = spreadsheet.worksheet("Отклики")
 
 ASK_NAME, ASK_PHONE, ASK_POSITION = range(3)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Здравствуйте! Я бот кадрового агентства.
-"
-        "Команды:
-"
-        "/vacancies – Посмотреть вакансии
-"
-        "/faq – Частые вопросы
-"
-        "/apply – Оставить заявку"
-    )
+await update.message.reply_text("""Здравствуйте! Я бот кадрового агентства.
+Команды:
+/vacancies – Посмотреть вакансии
+/faq – Частые вопросы
+/apply – Оставить заявку""")
+
 
 async def vacancies(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = sheet_vacancies.get_all_records()

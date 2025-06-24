@@ -9,53 +9,55 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# Логирование
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
-# Google Sheets setup
+# Авторизация Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 client = gspread.authorize(creds)
 
+# Подключение к таблицам
 spreadsheet = client.open_by_url("https://docs.google.com/spreadsheets/d/10-sXX7zmsjxcLBGoua876P9eopBwPSe4f6P0NfmRDfY/edit")
 sheet_vacancies = spreadsheet.worksheet("Вакансии")
 sheet_questions = spreadsheet.worksheet("Вопросы")
 sheet_applications = spreadsheet.worksheet("Отклики")
 
+# Состояния диалога
 ASK_NAME, ASK_PHONE, ASK_POSITION = range(3)
 
-await update.message.reply_text("""Здравствуйте! Я бот кадрового агентства.
-Команды:
-/vacancies – Посмотреть вакансии
-/faq – Частые вопросы
-/apply – Оставить заявку""")
+# Команда /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Здравствуйте! Я бот кадрового агентства.\n"
+        "Команды:\n"
+        "/vacancies – Посмотреть вакансии\n"
+        "/faq – Частые вопросы\n"
+        "/apply – Оставить заявку"
+    )
 
-
+# Команда /vacancies
 async def vacancies(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = sheet_vacancies.get_all_records()
     msg = ""
     for row in data:
         if row['СТАТУС'].strip().upper() == "ОТКРЫТА":
             msg += (
-                f"📌 *{row['Вакансия']}*
-"
-                f"💸 Часовая ставка: {row['Часовая ставка']}
-"
-                f"🕐 Вахта 12ч (30/30): {row['Вахта по 12 часов (30/30)']}
-"
-                f"🕦 Вахта 11ч (60/30): {row['Вахта по 11 ч (60/30)']}
-"
-                f"📝 Описание: {row['Описание']}
-
-"
+                f"📌 *{row['Вакансия']}*\n"
+                f"💸 Часовая ставка: {row['Часовая ставка']}\n"
+                f"🕐 Вахта 12ч (30/30): {row['Вахта по 12 часов (30/30)']}\n"
+                f"🕦 Вахта 11ч (60/30): {row['Вахта по 11 ч (60/30)']}\n"
+                f"📝 Описание: {row['Описание']}\n\n"
             )
     await update.message.reply_text(msg or "Нет открытых вакансий.", parse_mode='Markdown')
 
+# Команда /faq
 async def faq(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = sheet_questions.get_all_records()
     msg = "\n\n".join([f"❓ {row['Вопрос']}\n💬 {row['Ответ']}" for row in data])
     await update.message.reply_text(msg or "Нет данных по вопросам.")
 
+# Команда /apply
 async def apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Введите ваше ФИО:")
     return ASK_NAME
@@ -89,8 +91,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Операция отменена.")
     return ConversationHandler.END
 
+# Основная функция запуска
 def main():
     token = os.getenv("BOT_TOKEN")
+    if not token:
+        raise ValueError("Переменная окружения BOT_TOKEN не установлена")
+
     app = ApplicationBuilder().token(token).build()
 
     app.add_handler(CommandHandler("start", start))

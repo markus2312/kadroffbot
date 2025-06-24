@@ -31,7 +31,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 def get_data():
-    sheet = client.open("Передовик вакансии БОТ").sheet1
+    sheet = client.open("КАДРОФФ Бот").sheet1
     return sheet.get_all_records()
 
 def save_application_to_sheet(name, phone, vacancy, username):

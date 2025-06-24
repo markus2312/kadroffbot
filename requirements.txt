@@ -1,4 +1,0 @@
-python-telegram-bot==20.7
-Flask==2.2.5
-gspread==5.12.4
-oauth2client==4.1.3

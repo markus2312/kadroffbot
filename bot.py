@@ -1,3 +1,6 @@
+Вот весь код бота с добавлением кнопки "У МЕНЯ ВОПРОС" и соответствующего обработчика для вывода вопросов и ответов из листа "Вопросы":
+
+```python
 from flask import Flask
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -46,7 +49,10 @@ STATE_WAITING_FOR_PHONE = 2
 
 # ===== Handlers =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("АКТУАЛЬНЫЕ ВАКАНСИИ", callback_data="find_jobs")]]
+    keyboard = [
+        [InlineKeyboardButton("АКТУАЛЬНЫЕ ВАКАНСИИ", callback_data="find_jobs"),
+         InlineKeyboardButton("У МЕНЯ ВОПРОС", callback_data="questions")]
+    ]
     markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Я помогу вам подобрать вакансию. Напишите название профессии или посмотрите список открытых вакансий", reply_markup=markup)
 
@@ -68,11 +74,33 @@ async def jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(1)
         await update.callback_query.message.reply_text("Какая вакансия интересует?")
 
+async def questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Получаем вопросы и ответы с листа "Вопросы"
+    sheet = client.open("КАДРОФФ Бот").worksheet("Вопросы")
+    questions = sheet.col_values(1)[1:]  # Вопросы из столбца A начиная со второй строки
+    answers = sheet.col_values(2)[1:]    # Ответы из столбца B начиная со второй строки
+
+    if not questions:
+        await update.callback_query.message.reply_text("У нас нет вопросов для вас.")
+        return
+
+    # Формируем список вопросов и ответов
+    response = "Список вопросов и ответов:\n\n"
+    for i in range(len(questions)):
+        response += f"❓ *Вопрос {i+1}:*\n{questions[i]}\n\n"  # Вопрос
+        response += f"💬 *Ответ:*\n{answers[i]}\n\n"  # Ответ
+
+    # Отправляем сообщение с вопросами и ответами
+    await update.callback_query.message.reply_text(response)
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
     if query.data == "find_jobs":
         await jobs(update, context)
+    elif query.data == "questions":
+        await questions(update, context)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
@@ -181,15 +209,5 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ===== Bot setup =====
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("jobs", jobs))
-    app.add_handler(CallbackQueryHandler(handle_callback, pattern="find_jobs"))
-    app.add_handler(CallbackQueryHandler(handle_apply, pattern=r"apply_\d+"))
-    app.add_handler(CallbackQueryHandler(back, pattern="back"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-    app.run_polling()
-
-# ===== Main start =====
-if __name__ == '__main__':
-    Thread(target=run_flask).start()
-    run_bot()
+    app.add
+```

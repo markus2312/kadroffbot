@@ -34,6 +34,12 @@ def get_data():
     sheet = client.open("КАДРОФФ Бот").worksheet("Вакансии")
     return sheet.get_all_records()
 
+def get_questions_and_answers():
+    sheet = client.open("КАДРОФФ Бот").worksheet("Вопросы")
+    questions = sheet.col_values(1)[1:]  # Чтение всех вопросов начиная со второй строки
+    answers = sheet.col_values(2)[1:]  # Чтение всех ответов начиная со второй строки
+    return zip(questions, answers)  # Соединяем вопросы и ответы в кортежи
+
 def save_application_to_sheet(name, phone, vacancy, username):
     sheet = client.open_by_key("10-sXX7zmsjxcLBGoua876P9eopBwPSe4f6P0NfmRDfY")
     worksheet = sheet.worksheet("Отклики")
@@ -51,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("У МЕНЯ ВОПРОС", callback_data="questions")]
     ]
     markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Я помогу вам подобрать вакансию. Напишите название профессии или посмотрите список открытых вакансий", reply_markup=markup)
+    await update.message.reply_text("Я помогу вам подобрать вакансию или ответить на ваш вопрос.", reply_markup=markup)
 
 async def jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_data()
@@ -72,81 +78,24 @@ async def jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.reply_text("Какая вакансия интересует?")
 
 async def questions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем вопросы и ответы с листа "Вопросы"
-    sheet = client.open("КАДРОФФ Бот").worksheet("Вопросы")
-    questions = sheet.col_values(1)[1:]  # Вопросы из столбца A начиная со второй строки
-    answers = sheet.col_values(2)[1:]    # Ответы из столбца B начиная со второй строки
-
-    if not questions:
-        await update.callback_query.message.reply_text("У нас нет вопросов для вас.")
+    questions_and_answers = get_questions_and_answers()
+    if not questions_and_answers:
+        await update.callback_query.message.reply_text("Вопросы и ответы еще не добавлены.")
         return
 
-    # Формируем список вопросов и ответов
-    response = "Список вопросов и ответов:\n\n"
-    for i in range(len(questions)):
-        response += f"❓ *Вопрос {i+1}:*\n{questions[i]}\n\n"  # Вопрос
-        response += f"💬 *Ответ:*\n{answers[i]}\n\n"  # Ответ
+    text = "❓ *Вопросы и ответы:*\n\n"
+    for question, answer in questions_and_answers:
+        text += f"🔹 *Вопрос:* {question}\n📝 *Ответ:* {answer}\n\n"
 
-    # Отправляем сообщение с вопросами и ответами
-    await update.callback_query.message.reply_text(response)
+    await update.callback_query.message.reply_text(text)
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     if query.data == "find_jobs":
         await jobs(update, context)
     elif query.data == "questions":
         await questions(update, context)
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
-    data = get_data()
-    matches = []
-
-    for row in data:
-        for line in row['Вакансия'].splitlines():
-            if text in line.lower() or difflib.get_close_matches(text, [line.lower()], cutoff=0.6):
-                matches.append(row)
-                break
-
-    if matches:
-        context.user_data['vacancy_matches'] = matches
-        for i, row in enumerate(matches):
-            description = row.get('Описание', '').strip()
-            description_text = f"\n\n📃 Описание вакансии:\n\n{description}" if description else ""
-
-            response = f"""
-🔧 *{row['Вакансия']}*
-
-📈 Часовая ставка:
-{row['Часовая ставка']}
-
-🕐 Вахта 30/30 по 12ч:
-{row['Вахта по 12 часов (30/30)']}
-
-🕑 Вахта 60/30 по 11ч:
-{row['Вахта по 11 ч (60/30)']}
-
-📌 Статус: {row.get('СТАТУС', 'не указан')}{description_text}
-"""
-            keyboard = [
-                [InlineKeyboardButton("ОТКЛИКНУТЬСЯ", callback_data=f"apply_{i}"),
-                 InlineKeyboardButton("НАЗАД", callback_data="back")]
-            ]
-            markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_markdown(response, reply_markup=markup)
-    else:
-        await update.message.reply_text("Не нашёл вакансию по вашему запросу. Попробуйте написать её полнее.")
-
-async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    keyboard = [[InlineKeyboardButton("АКТУАЛЬНЫЕ ВАКАНСИИ", callback_data="find_jobs")]]
-    markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.message.reply_text(
-        "Я помогу вам подобрать вакансию. Напишите название профессии или посмотрите список открытых вакансий",
-        reply_markup=markup
-    )
 
 async def handle_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -206,4 +155,12 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ===== Bot setup =====
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
-    app.add
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(handle_callback))  # Обработчик для кнопок
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))  # Обработчик для текстовых сообщений
+    app.run_polling()
+
+# ===== Main start =====
+if __name__ == '__main__':
+    Thread(target=run_flask).start()
+    run_bot()

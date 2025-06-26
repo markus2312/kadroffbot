@@ -1,6 +1,3 @@
-Вот весь код бота с добавлением кнопки "У МЕНЯ ВОПРОС" и соответствующего обработчика для вывода вопросов и ответов из листа "Вопросы":
-
-```python
 from flask import Flask
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -210,4 +207,3 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
     app.add
-```

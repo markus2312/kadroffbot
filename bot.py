@@ -94,11 +94,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     if query.data == "find_jobs":
         await jobs(update, context)
+    elif query.data == "questions":
+        await questions(update, context)  # Вызов функции для вопросов
     elif query.data.startswith("apply_"):
         # Обработка отклика на вакансию
         await handle_apply(update, context)
     elif query.data == "back":
         await back(update, context)
+
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):

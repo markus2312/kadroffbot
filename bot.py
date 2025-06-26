@@ -36,7 +36,7 @@ def get_data():
 
 def save_application_to_sheet(name, phone, vacancy, username):
     sheet = client.open_by_key("10-sXX7zmsjxcLBGoua876P9eopBwPSe4f6P0NfmRDfY")
-    worksheet = sheet.worksheet("bot otkliki")
+    worksheet = sheet.worksheet("Отклики")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     worksheet.append_row([now, name, phone, vacancy, f"@{username}" if username else "без username"], value_input_option="USER_ENTERED")
 

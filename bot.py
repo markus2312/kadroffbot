@@ -97,6 +97,55 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "questions":
         await questions(update, context)
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.lower()
+    data = get_data()
+    matches = []
+
+    for row in data:
+        for line in row['Вакансия'].splitlines():
+            if text in line.lower() or difflib.get_close_matches(text, [line.lower()], cutoff=0.6):
+                matches.append(row)
+                break
+
+    if matches:
+        context.user_data['vacancy_matches'] = matches
+        for i, row in enumerate(matches):
+            description = row.get('Описание', '').strip()
+            description_text = f"\n\n📃 Описание вакансии:\n\n{description}" if description else ""
+
+            response = f"""
+🔧 *{row['Вакансия']}*
+
+📈 Часовая ставка:
+{row['Часовая ставка']}
+
+🕐 Вахта 30/30 по 12ч:
+{row['Вахта по 12 часов (30/30)']}
+
+🕑 Вахта 60/30 по 11ч:
+{row['Вахта по 11 ч (60/30)']}
+
+📌 Статус: {row.get('СТАТУС', 'не указан')}{description_text}
+"""
+            keyboard = [
+                [InlineKeyboardButton("ОТКЛИКНУТЬСЯ", callback_data=f"apply_{i}"),
+                 InlineKeyboardButton("НАЗАД", callback_data="back")]
+            ]
+            markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_markdown(response, reply_markup=markup)
+    else:
+        await update.message.reply_text("Не нашёл вакансию по вашему запросу. Попробуйте написать её полнее.")
+
+async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    keyboard = [[InlineKeyboardButton("АКТУАЛЬНЫЕ ВАКАНСИИ", callback_data="find_jobs")]]
+    markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text(
+        "Я помогу вам подобрать вакансию. Напишите название профессии или посмотрите список открытых вакансий",
+        reply_markup=markup
+    )
+
 async def handle_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     index = int(query.data.split("_", 1)[1])
@@ -156,11 +205,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_callback))  # Обработчик для кнопок
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))  # Обработчик для текстовых сообщений
-    app.run_polling()
-
-# ===== Main start =====
-if __name__ == '__main__':
-    Thread(target=run_flask).start()
-    run_bot()
+    app.add_handler(CommandHandler("jobs", jobs))
+    app.add_handler(CallbackQueryHandler(handle_callback, pattern="find_jobs"))
+    app

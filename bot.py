@@ -94,8 +94,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     if query.data == "find_jobs":
         await jobs(update, context)
-    elif query.data == "questions":
-        await questions(update, context)
+    elif query.data.startswith("apply_"):
+        # Обработка отклика на вакансию
+        await handle_apply(update, context)
+    elif query.data == "back":
+        await back(update, context)
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
@@ -159,9 +163,14 @@ async def handle_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vacancy = row['Вакансия']
     context.user_data['vacancy'] = vacancy
 
+    # Здесь выводится описание вакансии, если оно есть
+    description = row.get('Описание', '').strip()
+    description_text = f"\n\n📃 Описание вакансии:\n\n{description}" if description else ""
+
     await query.answer()
-    await query.message.edit_text(f"Вы откликнулись на вакансию: {vacancy}\n\nПожалуйста, введите ваше ФИО:")
+    await query.message.edit_text(f"Вы откликнулись на вакансию: {vacancy}{description_text}\n\nПожалуйста, введите ваше ФИО:")
     context.user_data['state'] = STATE_WAITING_FOR_FIO
+
 
 async def handle_fio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fio = update.message.text.strip()
@@ -205,6 +214,11 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("jobs", jobs))
-    app.add_handler(CallbackQueryHandler(handle_callback, pattern="find_jobs"))
-    app
+    app.add_handler(CallbackQueryHandler(handle_callback))  # Обработчик для кнопок
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))  # Обработчик для текстовых сообщений
+    app.run_polling()
+
+# ===== Main start =====
+if __name__ == '__main__':
+    Thread(target=run_flask).start()
+    run_bot()

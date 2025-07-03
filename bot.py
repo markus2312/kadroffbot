@@ -31,6 +31,7 @@ scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/au
 # Декодируем credentials из base64 и инициализируем google.oauth2.credentials
 b64_creds = os.getenv("GOOGLE_CREDENTIALS_BASE64")
 decoded_json = base64.b64decode(b64_creds).decode("utf-8")
+print(decoded_json)
 credentials_info = json.loads(decoded_json)
 credentials = Credentials.from_service_account_info(credentials_info, scopes=scope)
 

@@ -6,13 +6,14 @@ from telegram.ext import (
     CallbackQueryHandler, filters, ContextTypes
 )
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
+import base64
 import difflib
 import re
 from datetime import datetime
 import asyncio
+from google.oauth2.service_account import Credentials
 
 # ===== Flask keep-alive server =====
 flask_app = Flask('')
@@ -26,9 +27,14 @@ def run_flask():
 
 # ===== Google Sheets setup =====
 scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/drive']
-creds_dict = json.loads(os.environ['GOOGLE_CREDENTIALS'])
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
+
+# Декодируем credentials из base64 и инициализируем google.oauth2.credentials
+b64_creds = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+decoded_json = base64.b64decode(b64_creds).decode("utf-8")
+credentials_info = json.loads(decoded_json)
+credentials = Credentials.from_service_account_info(credentials_info, scopes=scope)
+
+client = gspread.authorize(credentials)
 
 def get_data():
     sheet = client.open("КАДРОФФ Бот").worksheet("Вакансии")
@@ -95,14 +101,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "find_jobs":
         await jobs(update, context)
     elif query.data == "questions":
-        await questions(update, context)  # Вызов функции для вопросов
+        await questions(update, context)
     elif query.data.startswith("apply_"):
-        # Обработка отклика на вакансию
         await handle_apply(update, context)
     elif query.data == "back":
         await back(update, context)
-
-
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
@@ -166,14 +169,12 @@ async def handle_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vacancy = row['Вакансия']
     context.user_data['vacancy'] = vacancy
 
-    # Здесь выводится описание вакансии, если оно есть
     description = row.get('Описание', '').strip()
     description_text = f"\n\n📃 Описание вакансии:\n\n{description}" if description else ""
 
     await query.answer()
     await query.message.edit_text(f"Вы откликнулись на вакансию: {vacancy}{description_text}\n\nПожалуйста, введите ваше ФИО:")
     context.user_data['state'] = STATE_WAITING_FOR_FIO
-
 
 async def handle_fio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fio = update.message.text.strip()
@@ -217,8 +218,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 def run_bot():
     app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_callback))  # Обработчик для кнопок
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))  # Обработчик для текстовых сообщений
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     app.run_polling()
 
 # ===== Main start =====

@@ -128,8 +128,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = f"""
 🔧 *{row['Вакансия']}*
 
-🕓 Часовая ставка:
-{row['Часовая ставка']}
+🕓 Ставка:
+{row['Ставка']}
 
 💵 Зарплата:
 {row['Зарплата']}
